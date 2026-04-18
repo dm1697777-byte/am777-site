@@ -1504,7 +1504,7 @@ footer{padding:48px 0;border-top:1px solid var(--border);text-align:center;}
       <div class="contact-form" id="contact-form">
         <div class="form-title">Get Your Automation Setup</div>
         <div class="form-sub">Fill this in — I'll respond with a clear plan within 24 hours.</div>
-        <form id="inquiryForm" method="POST" action="https://script.google.com/macros/s/AKfycbyYJJKzs4AHB1ZKxuFIOddx3nWZisq3uzlDfZa5RlFZHWD5uKm24S1U7vnFvKR5cKDX/exec" target="hidden_iframe" enctype="application/x-www-form-urlencoded" novalidate>
+        <form id="inquiryForm" method="POST" novalidate>
           <div class="form-row">
             <div class="field">
               <label>Your Name</label>
@@ -1553,8 +1553,7 @@ footer{padding:48px 0;border-top:1px solid var(--border);text-align:center;}
           <button type="submit" class="form-submit">Send My Inquiry →</button>
           <div class="form-privacy">🔒 Your info is used only to plan your automation. No spam, ever.</div>
         </form>
-        <iframe name="hidden_iframe" style="display:none;"></iframe>
-        <div id="form-success" aria-live="polite" style="display:none;text-align:center;padding:40px 0;">
+                <div id="form-success" aria-live="polite" style="display:none;text-align:center;padding:40px 0;">
           <div style="font-size:36px;margin-bottom:16px;">✅</div>
           <div class="form-title">Message received!</div>
           <p style="color:var(--muted2);margin-top:10px;font-size:14px;">I'll review your inquiry and get back to you with a clear plan within 24 hours.</p>
@@ -1705,35 +1704,42 @@ if (sticky) {
 const inquiryForm = document.getElementById('inquiryForm');
 const formSuccess = document.getElementById('form-success');
 const uaField = document.getElementById('uaField');
-const hiddenFrame = document.querySelector('iframe[name="hidden_iframe"]');
-let hasSubmitted = false;
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyYJJKzs4AHB1ZKxuFIOddx3nWZisq3uzlDfZa5RlFZHWD5uKm24S1U7vnFvKR5cKDX/exec';
 
 if (uaField) {
   uaField.value = navigator.userAgent;
 }
 
 if (inquiryForm) {
-  inquiryForm.addEventListener('submit', () => {
-    hasSubmitted = true;
+  inquiryForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    if (uaField) uaField.value = navigator.userAgent;
+
     const submitBtn = inquiryForm.querySelector('.form-submit');
     if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.textContent = 'Sending...';
     }
-  });
-}
 
-if (hiddenFrame) {
-  hiddenFrame.addEventListener('load', () => {
-    if (!hasSubmitted) return;
-    hasSubmitted = false;
+    try {
+      const payload = new URLSearchParams(new FormData(inquiryForm)).toString();
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: payload
+      });
 
-    if (inquiryForm) inquiryForm.style.display = 'none';
-    if (formSuccess) formSuccess.style.display = 'block';
-
-    if (inquiryForm) {
+      inquiryForm.style.display = 'none';
+      if (formSuccess) formSuccess.style.display = 'block';
       inquiryForm.reset();
-      const submitBtn = inquiryForm.querySelector('.form-submit');
+    } catch (err) {
+      console.error(err);
+      alert('Submission failed. Please try again.');
+    } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Send My Inquiry →';
