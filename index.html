@@ -1504,7 +1504,7 @@ footer{padding:48px 0;border-top:1px solid var(--border);text-align:center;}
       <div class="contact-form" id="contact-form">
         <div class="form-title">Get Your Automation Setup</div>
         <div class="form-sub">Fill this in — I'll respond with a clear plan within 24 hours.</div>
-        <form id="inquiryForm" method="POST" action="https://script.google.com/macros/s/AKfycbyYJJKzs4AHB1ZKxuFIOddx3nWZisq3uzlDfZa5RlFZHWD5uKm24S1U7vnFvKR5cKDX/exec" target="hidden_iframe" novalidate>
+        <form id="inquiryForm" method="POST" target="hidden_iframe" novalidate>
           <div class="form-row">
             <div class="field">
               <label>Your Name</label>
@@ -1624,58 +1624,121 @@ footer{padding:48px 0;border-top:1px solid var(--border);text-align:center;}
 // ── CURSOR ──
 const cur = document.getElementById('cur');
 const curRing = document.getElementById('cur-ring');
-let mx=0,my=0,rx=0,ry=0;
-document.addEventListener('mousemove',e=>{
-  mx=e.clientX;my=e.clientY;
-  cur.style.left=mx+'px';cur.style.top=my+'px';
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX;
+  my = e.clientY;
+  if (cur) {
+    cur.style.left = mx + 'px';
+    cur.style.top = my + 'px';
+  }
 });
-(function lerpRing(){
-  rx+=(mx-rx)*.1;ry+=(my-ry)*.1;
-  curRing.style.left=rx+'px';curRing.style.top=ry+'px';
+
+(function lerpRing() {
+  rx += (mx - rx) * 0.1;
+  ry += (my - ry) * 0.1;
+  if (curRing) {
+    curRing.style.left = rx + 'px';
+    curRing.style.top = ry + 'px';
+  }
   requestAnimationFrame(lerpRing);
 })();
-document.querySelectorAll('a,button,.svc-card,.sol-card,.case-card').forEach(el=>{
-  el.addEventListener('mouseenter',()=>{cur.style.width='18px';cur.style.height='18px';});
-  el.addEventListener('mouseleave',()=>{cur.style.width='10px';cur.style.height='10px';});
+
+document.querySelectorAll('a,button,.svc-card,.sol-card,.case-card').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    if (cur) {
+      cur.style.width = '18px';
+      cur.style.height = '18px';
+    }
+  });
+  el.addEventListener('mouseleave', () => {
+    if (cur) {
+      cur.style.width = '10px';
+      cur.style.height = '10px';
+    }
+  });
 });
 
 // ── TICKER ──
-const tickerItems=['Lead Capture Automation','Instant Reply Systems','CRM & Airtable Setup','Workflow Automation','24/7 Lead Response','n8n Workflows','AI-Powered Systems','Google Sheets Integration','Messenger Automation','No More Manual Work','Zero Lost Leads','Philippines-Based Builder','AM777 Automation Solutions'];
-const track=document.getElementById('tickerTrack');
-const content=[...tickerItems,...tickerItems].map(i=>`<span class="ticker-item">${i}</span><span class="ticker-sep">◈</span>`).join('');
-track.innerHTML=content+content;
+const tickerItems = [
+  'Lead Capture Automation',
+  'Instant Reply Systems',
+  'CRM & Airtable Setup',
+  'Workflow Automation',
+  '24/7 Lead Response',
+  'n8n Workflows',
+  'AI-Powered Systems',
+  'Google Sheets Integration',
+  'Messenger Automation',
+  'No More Manual Work',
+  'Zero Lost Leads',
+  'Philippines-Based Builder',
+  'AM777 Automation Solutions'
+];
+const track = document.getElementById('tickerTrack');
+if (track) {
+  const content = [...tickerItems, ...tickerItems]
+    .map(i => `<span class="ticker-item">${i}</span><span class="ticker-sep">◈</span>`)
+    .join('');
+  track.innerHTML = content;
+}
 
 // ── SCROLL ANIMATIONS ──
-const animEls=document.querySelectorAll('.anim');
-const io=new IntersectionObserver(entries=>{
-  entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in');});
-},{threshold:.1});
-animEls.forEach(el=>io.observe(el));
+const animEls = document.querySelectorAll('.anim');
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) e.target.classList.add('in');
+  });
+}, { threshold: 0.1 });
+animEls.forEach(el => io.observe(el));
 
 // ── STICKY CTA ──
-const sticky=document.getElementById('stickyCta');
-window.addEventListener('scroll',()=>{
-  sticky.classList.toggle('visible',window.scrollY>600);
-});
+const sticky = document.getElementById('stickyCta');
+if (sticky) {
+  window.addEventListener('scroll', () => {
+    sticky.classList.toggle('visible', window.scrollY > 600);
+  });
+}
 
 // ── FORM ──
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYJJKzs4AHB1ZKxuFIOddx3nWZisq3uzlDfZa5RlFZHWD5uKm24S1U7vnFvKR5cKDX/exec";
 const inquiryForm = document.getElementById('inquiryForm');
 const formSuccess = document.getElementById('form-success');
 const uaField = document.getElementById('uaField');
+const hiddenFrame = document.querySelector('iframe[name="hidden_iframe"]');
+let hasSubmitted = false;
 
 if (uaField) {
   uaField.value = navigator.userAgent;
 }
 
 if (inquiryForm) {
-  inquiryForm.action = APPS_SCRIPT_URL;
-  inquiryForm.addEventListener('submit', function () {
-    setTimeout(function () {
-      inquiryForm.style.display = 'none';
-      if (formSuccess) formSuccess.style.display = 'block';
+  inquiryForm.addEventListener('submit', () => {
+    hasSubmitted = true;
+    const submitBtn = inquiryForm.querySelector('.form-submit');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending...';
+    }
+  });
+}
+
+if (hiddenFrame) {
+  hiddenFrame.addEventListener('load', () => {
+    if (!hasSubmitted) return;
+    hasSubmitted = false;
+
+    if (inquiryForm) inquiryForm.style.display = 'none';
+    if (formSuccess) formSuccess.style.display = 'block';
+
+    if (inquiryForm) {
       inquiryForm.reset();
-    }, 900);
+      const submitBtn = inquiryForm.querySelector('.form-submit');
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send My Inquiry →';
+      }
+    }
   });
 }
 </script>
