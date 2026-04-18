@@ -7,7 +7,7 @@
 <title>AM777 Automation Solutions — Capture Leads. Reply Instantly. Never Miss a Customer.</title>
 <meta name="description" content="AM777 builds automation systems that capture leads, reply instantly, and streamline operations — so businesses don't lose customers or waste time."/>
 <meta name="referrer" content="no-referrer"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self' https://script.google.com https://script.googleusercontent.com; frame-ancestors 'none'; upgrade-insecure-requests"/>
 <meta name="color-scheme" content="dark"/>
 
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -1504,24 +1504,24 @@ footer{padding:48px 0;border-top:1px solid var(--border);text-align:center;}
       <div class="contact-form" id="contact-form">
         <div class="form-title">Get Your Automation Setup</div>
         <div class="form-sub">Fill this in — I'll respond with a clear plan within 24 hours.</div>
-        <form id="inquiryForm" novalidate>
+        <form id="inquiryForm" method="POST" target="hidden_iframe" novalidate>
           <div class="form-row">
             <div class="field">
               <label>Your Name</label>
-              <input type="text" placeholder="Juan dela Cruz" required/>
+              <input type="text" name="name" placeholder="Juan dela Cruz" required/>
             </div>
             <div class="field">
               <label>Business Name</label>
-              <input type="text" placeholder="Your Business"/>
+              <input type="text" name="business" placeholder="Your Business"/>
             </div>
           </div>
           <div class="field">
             <label>Contact (WhatsApp / Email / Messenger)</label>
-            <input type="text" placeholder="+63 or email@business.com or @messenger" required/>
+            <input type="text" name="contact" placeholder="+63 or email@business.com or @messenger" required/>
           </div>
           <div class="field">
             <label>What Type of Business?</label>
-            <select required>
+            <select name="businessType" required>
               <option value="" disabled selected>Select your industry</option>
               <option>Real Estate / Rentals</option>
               <option>Clinic / Medical Services</option>
@@ -1535,11 +1535,11 @@ footer{padding:48px 0;border-top:1px solid var(--border);text-align:center;}
           </div>
           <div class="field">
             <label>What's Your Biggest Problem Right Now?</label>
-            <textarea placeholder="Example: We're getting leads from Facebook but we reply too slowly and lose them. Our team also spends 2 hours a day doing manual data entry into spreadsheets..."></textarea>
+            <textarea name="problem" placeholder="Example: We're getting leads from Facebook but we reply too slowly and lose them. Our team also spends 2 hours a day doing manual data entry into spreadsheets..."></textarea>
           </div>
           <div class="field">
             <label>System Type You're Interested In</label>
-            <select>
+            <select name="systemType">
               <option value="" disabled selected>Which system do you need?</option>
               <option>Starter System (1 core automation)</option>
               <option>Standard System (full pipeline + CRM)</option>
@@ -1547,9 +1547,13 @@ footer{padding:48px 0;border-top:1px solid var(--border);text-align:center;}
               <option>Not sure yet — help me figure it out</option>
             </select>
           </div>
+          <input type="hidden" name="page" value="landing-page"/>
+          <input type="hidden" name="userAgent" id="uaField"/>
+          <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off"/>
           <button type="submit" class="form-submit">Send My Inquiry →</button>
-          <div class="form-privacy">🔒 Demo form only on this version — no hidden API calls, no background data transfer, no spam.</div>
+          <div class="form-privacy">🔒 Your info is used only to plan your automation. No spam, ever.</div>
         </form>
+        <iframe name="hidden_iframe" style="display:none;"></iframe>
         <div id="form-success" aria-live="polite" style="display:none;text-align:center;padding:40px 0;">
           <div style="font-size:36px;margin-bottom:16px;">✅</div>
           <div class="form-title">Message received!</div>
@@ -1655,12 +1659,23 @@ window.addEventListener('scroll',()=>{
 });
 
 // ── FORM ──
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyYJJKzs4AHB1ZKxuFIOddx3nWZisq3uzlDfZa5RlFZHWD5uKm24S1U7vnFvKR5cKDX/exec";
 const inquiryForm = document.getElementById('inquiryForm');
+const formSuccess = document.getElementById('form-success');
+const uaField = document.getElementById('uaField');
+
+if (uaField) {
+  uaField.value = navigator.userAgent;
+}
+
 if (inquiryForm) {
-  inquiryForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    inquiryForm.style.display = 'none';
-    document.getElementById('form-success').style.display = 'block';
+  inquiryForm.action = APPS_SCRIPT_URL;
+  inquiryForm.addEventListener('submit', function () {
+    setTimeout(function () {
+      inquiryForm.style.display = 'none';
+      if (formSuccess) formSuccess.style.display = 'block';
+      inquiryForm.reset();
+    }, 900);
   });
 }
 </script>
