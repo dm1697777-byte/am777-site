@@ -2327,6 +2327,7 @@ footer{padding:48px 0;border-top:1px solid var(--border);text-align:center;}
 }
 
 </style>
+<!-- AM777_SYNC_CONNECTED_STRICT_CONTACT: Apps Script URL connected, contact number required. -->
 </head>
 <body>
 
@@ -3615,7 +3616,7 @@ if (sticky) {
 const inquiryForm = document.getElementById('inquiryForm');
 const formSuccess = document.getElementById('form-success');
 const uaField = document.getElementById('uaField');
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuU0g9mUX5LqkeRl1TMJBaZdnESqkWsgasoBus94SdzW4XW-LNcRYjqwVRGTqseQmp/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxyJf0X0L45KvtfQAhP0gh0gf7yHPhJsUds5xidO_l9XH_VMmI_ueufloxD_tMTbpFK/exec';
 
 if (uaField) {
   uaField.value = navigator.userAgent;
@@ -3643,7 +3644,14 @@ if (inquiryForm) {
     }
 
     try {
-      const payload = new URLSearchParams(new FormData(inquiryForm)).toString();
+      const formPayload = new URLSearchParams(new FormData(inquiryForm));
+      formPayload.set('full_name', formPayload.get('name') || formPayload.get('full_name') || '');
+      formPayload.set('contact_number', formPayload.get('contact_number') || formPayload.get('phone') || '');
+      formPayload.set('business_name', formPayload.get('business') || formPayload.get('business_name') || '');
+      formPayload.set('service_interest', formPayload.get('systemType') || formPayload.get('service_interest') || '');
+      formPayload.set('main_problem', formPayload.get('problem') || formPayload.get('main_problem') || '');
+      formPayload.set('source', 'live-github-form');
+      const payload = formPayload.toString();
       await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
