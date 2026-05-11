@@ -6,7 +6,7 @@
  */
 
 const AM777_CONFIG = {
-  appsScriptEndpoint: "appsScriptEndpoint: "https://script.google.com/macros/s/AKfycbxbejRgkNIhssIkSym9096WGQN_9CbfHRIjMn6jdgDtYC9CDaAB5PRVNe4Yf_kKQbSSig/exec""
+  appsScriptEndpoint: "https://script.google.com/macros/s/AKfycbxbejRgkNIhssIkSym9096WGQN_9CbfHRIjMn6jdgDtYC9CDaAB5PRVNe4Yf_kKQbSSig/exec"
 };
 
 const AM777_KEYS = {
