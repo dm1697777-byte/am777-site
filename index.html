@@ -3485,36 +3485,49 @@ document.querySelectorAll('a[href="#contact"], .btn-primary, .nav-cta, .btn-pack
 /* ════════════════════════════════════════════
    BOOKING FORM — Free Automation Fit Check
 ════════════════════════════════════════════ */
-const bkForm=document.getElementById('bkForm');
-let am777FormStarted=false;
-if(bkForm){
-  bkForm.addEventListener('focusin',()=>{
-    if(!am777FormStarted){
-      am777FormStarted=true;
-      trackAM777Event('form_start',{section:'Free Automation Fit Check'});
+window.AM777_CONFIG = window.AM777_CONFIG || {};
+window.AM777_CONFIG.endpoint = window.AM777_CONFIG.endpoint || "https://script.google.com/macros/s/AKfycbzQpqSDo2VD01Pk_J1eDsd1BsI0lMfCwz1FJFlCz5PqHGIZ4qCruDnq_mm_IrmgNw492w/exec";
+
+(function(){
+  var bkFormEl = document.getElementById("bkForm");
+  var am777FormStarted2 = false;
+  if(!bkFormEl) return;
+  bkFormEl.addEventListener("focusin", function(){
+    if(!am777FormStarted2){
+      am777FormStarted2 = true;
+      if(typeof trackAM777Event === "function") trackAM777Event("form_start", {section: "Free Automation Fit Check"});
     }
   });
-
-  bkForm.addEventListener('submit',async function(e){
+  bkFormEl.addEventListener("submit", function(e){
     e.preventDefault();
-    const payload={
-      name:document.getElementById('fn')?.value||'',
-      business:document.getElementById('fb')?.value||'',
-      contact:document.getElementById('fe')?.value||'',
-      service:document.getElementById('fs')?.value||'',
-      message:document.getElementById('ft')?.value||'',
-      problem:document.getElementById('ft')?.value||''
+    var payload = {
+      type: "lead",
+      name: (document.getElementById("fn") || {}).value || "",
+      business: (document.getElementById("fb") || {}).value || "",
+      contact: (document.getElementById("fe") || {}).value || "",
+      service: (document.getElementById("fs") || {}).value || "",
+      message: (document.getElementById("ft") || {}).value || "",
+      page: window.location.href,
+      source: "bottom_form",
+      userAgent: navigator.userAgent,
+      createdAt: new Date().toISOString()
     };
-
-    await saveAM777Lead(payload,'bottom_form');
-    await trackAM777Event('form_submit',{service:payload.service,source:'bottom_form'});
-
-    const ok=document.getElementById('formOk');
-    if(ok)ok.classList.add('show');
-    this.reset();
-    setTimeout(()=>{if(ok)ok.classList.remove('show')},8000);
+    console.log("AM777 LEAD PAYLOAD:", payload);
+    var ok = document.getElementById("formOk");
+    fetch(window.AM777_CONFIG.endpoint, {
+      method: "POST",
+      mode: "no-cors",
+      headers: {"Content-Type": "text/plain;charset=utf-8"},
+      body: JSON.stringify(payload)
+    }).then(function(){
+      if(ok){ ok.textContent = "Thank you. Your inquiry has been sent successfully."; ok.classList.add("show"); }
+      bkFormEl.reset();
+    }).catch(function(error){
+      console.error("AM777 lead submit failed:", error);
+      if(ok){ ok.textContent = "Something went wrong. Please try again or message AM777 directly."; ok.classList.add("show"); }
+    });
   });
-}
+})();
 
 /* ════════════════════════════════════════════
    YOUR ASSISTANT — Smart Funnel + AI Character
