@@ -3358,6 +3358,141 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 });
 
 /* ════════════════════════════════════════════
+   AM777 CRM + BACKEND SYNC
+════════════════════════════════════════════ */
+window.AM777_CONFIG = window.AM777_CONFIG || {};
+window.AM777_CONFIG.appsScriptEndpoint = window.AM777_CONFIG.appsScriptEndpoint ||
+  "https://script.google.com/macros/s/AKfycbzQpqSDo2VD01Pk_J1eDsd1BsI0lMfCwz1FJFlCz5PqHGIZ4qCruDnq_mm_IrmgNw492w/exec";
+
+window.AM777_KEYS = window.AM777_KEYS || {
+  leads: "AM777_PRIVATE_CRM_LEADS",
+  events: "AM777_VISITOR_EVENTS",
+  session: "AM777_SESSION_ID"
+};
+
+function am777UID(prefix) {
+  prefix = prefix || "am777";
+  return prefix + "_" + Date.now() + "_" + Math.random().toString(36).slice(2, 9);
+}
+function am777ReadJSON(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
+  catch(err) { console.warn("AM777 localStorage read failed:", key, err); return fallback; }
+}
+function am777WriteJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); }
+  catch(err) { console.warn("AM777 localStorage write failed:", key, err); }
+}
+function am777Clean(value) {
+  return value == null ? "" : String(value).trim();
+}
+function getAM777SessionId() {
+  var sid = sessionStorage.getItem(window.AM777_KEYS.session);
+  if (!sid) { sid = am777UID("session"); sessionStorage.setItem(window.AM777_KEYS.session, sid); }
+  return sid;
+}
+function getAM777DeviceLabel() {
+  var w = window.innerWidth || 0;
+  if (w <= 640) return "mobile";
+  if (w <= 1024) return "tablet";
+  return "desktop";
+}
+async function sendLeadToBackend(payload) {
+  var endpoint = window.AM777_CONFIG.appsScriptEndpoint;
+  if (!endpoint || !endpoint.includes("/exec")) {
+    console.warn("AM777 backend endpoint missing or invalid.");
+    return { success: false, localOnly: true, message: "No backend endpoint configured." };
+  }
+  try {
+    await fetch(endpoint, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    return { success: true, message: "Backend request attempted." };
+  } catch(err) {
+    console.warn("AM777 backend sync failed. Local backup kept.", err);
+    return { success: false, error: String(err) };
+  }
+}
+async function saveAM777Lead(payload, source) {
+  payload = payload || {};
+  source = source || "unknown";
+  var now = new Date().toISOString();
+  var lead = {
+    type: "lead",
+    id: payload.id || am777UID("lead"),
+    name: am777Clean(payload.name),
+    business: am777Clean(payload.business || payload.businessName || payload.pageName),
+    contact: am777Clean(payload.contact || payload.email || payload.phone),
+    service: am777Clean(payload.service || payload.serviceNeeded || payload.automationNeed),
+    message: am777Clean(payload.message || payload.problem || payload.pain),
+    source: source,
+    page: window.location.href,
+    submittedAt: payload.submittedAt || now,
+    timestamp: now,
+    status: payload.status || "New",
+    sessionId: getAM777SessionId(),
+    referrer: document.referrer || "",
+    userAgent: navigator.userAgent || "",
+    device: getAM777DeviceLabel()
+  };
+  var leads = am777ReadJSON(window.AM777_KEYS.leads, []);
+  leads.unshift(lead);
+  am777WriteJSON(window.AM777_KEYS.leads, leads.slice(0, 500));
+  console.log("AM777 lead collected:", lead);
+  await sendLeadToBackend(lead);
+  return lead;
+}
+async function trackAM777Event(eventType, details) {
+  details = details || {};
+  var eventPayload = {
+    type: "event",
+    id: am777UID("event"),
+    sessionId: getAM777SessionId(),
+    eventType: eventType,
+    page: window.location.href,
+    timestamp: new Date().toISOString(),
+    referrer: document.referrer || "",
+    userAgent: navigator.userAgent || "",
+    device: getAM777DeviceLabel(),
+    details: typeof details === "string" ? details : JSON.stringify(details)
+  };
+  var events = am777ReadJSON(window.AM777_KEYS.events, []);
+  events.unshift(eventPayload);
+  am777WriteJSON(window.AM777_KEYS.events, events.slice(0, 500));
+  await sendLeadToBackend(eventPayload);
+  return eventPayload;
+}
+window.saveAM777Lead = saveAM777Lead;
+window.trackAM777Event = trackAM777Event;
+window.sendLeadToBackend = sendLeadToBackend;
+
+trackAM777Event("page_view", { source: "index_html" });
+
+/* Reveal-on-scroll */
+(function initAM777Reveal() {
+  var items = document.querySelectorAll(".am777-reveal");
+  if (!items.length) return;
+  if (!("IntersectionObserver" in window)) { items.forEach(function(i){ i.classList.add("is-visible"); }); return; }
+  var io = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) { entry.target.classList.add("is-visible"); io.unobserve(entry.target); }
+    });
+  }, { threshold: 0.14 });
+  items.forEach(function(i){ io.observe(i); });
+})();
+
+/* CTA analytics */
+document.querySelectorAll('a[href="#contact"], .btn-primary, .nav-cta, .btn-pack-primary, .fb.bk').forEach(function(el) {
+  if (el.dataset.am777CtaBound === "true") return;
+  el.dataset.am777CtaBound = "true";
+  el.addEventListener("click", function() {
+    trackAM777Event("cta_click", { text: (el.textContent || "").trim(), href: el.getAttribute("href") || "" });
+  });
+});
+
+/* ════════════════════════════════════════════
    BOOKING FORM — Free Automation Fit Check
 ════════════════════════════════════════════ */
 window.AM777_CONFIG = window.AM777_CONFIG || {};
