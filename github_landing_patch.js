@@ -1,8 +1,6 @@
 /*
  * AM777 Landing Page → Google Sheets CRM Sync Patch
- * Safe version: no duplicate const/let global conflicts.
- * Put this before </body> in index.html:
- * <script src="./github_landing_patch.js?v=5" defer></script>
+ * Robust field detection version.
  */
 
 if (!window.__AM777_CRM_PATCH_LOADED__) {
@@ -13,8 +11,7 @@ if (!window.__AM777_CRM_PATCH_LOADED__) {
 
     window.AM777_CONFIG = window.AM777_CONFIG || {};
     window.AM777_CONFIG.appsScriptEndpoint =
-      window.AM777_CONFIG.appsScriptEndpoint ||
-      "https://script.google.com/macros/s/AKfycbxbejRgkNIhssIkSym9096WGQN_9CbfHRIjMn6jdgDtYC9CDaAB5PRVNe4Yf_kKQbSSig/exec";
+      "https://script.google.com/macros/s/AKfycbzQpqSDo2VD01Pk_J1eDsd1BsI0lMfCwz1FJFlCz5PqHGIZ4qCruDnq_mm_IrmgNw492w/exec";
 
     var AM777_ENDPOINT = window.AM777_CONFIG.appsScriptEndpoint;
 
@@ -24,22 +21,22 @@ if (!window.__AM777_CRM_PATCH_LOADED__) {
       session: "AM777_SESSION_ID"
     };
 
-    function am777Clean(value) {
+    function clean(value) {
       return value == null ? "" : String(value).trim();
     }
 
-    function am777NowISO() {
+    function nowISO() {
       return new Date().toISOString();
     }
 
-    function am777Device() {
+    function deviceType() {
       var width = window.innerWidth || 0;
       if (width <= 640) return "Mobile";
       if (width <= 1024) return "Tablet";
       return "Desktop";
     }
 
-    function am777SessionId() {
+    function sessionId() {
       var id = sessionStorage.getItem(AM777_KEYS.session);
       if (!id) {
         id =
@@ -52,129 +49,127 @@ if (!window.__AM777_CRM_PATCH_LOADED__) {
       return id;
     }
 
-    function am777SaveLocal(key, payload, limit) {
+    function saveLocal(key, payload, limit) {
       try {
         var current = JSON.parse(localStorage.getItem(key) || "[]");
         current.unshift(payload);
         localStorage.setItem(key, JSON.stringify(current.slice(0, limit || 500)));
       } catch (err) {
-        console.warn("AM777 local save skipped:", err);
+        console.warn("AM777 local backup skipped:", err);
       }
     }
 
-    function am777FindField(root, keywords) {
+    function allFields(root) {
       root = root || document;
+      return Array.from(root.querySelectorAll("input, textarea, select")).filter(function (field) {
+        var type = (field.type || "").toLowerCase();
+        return type !== "hidden" && type !== "submit" && type !== "button";
+      });
+    }
 
-      var fields = root.querySelectorAll("input, textarea, select");
-      var lowered = keywords.map(function (k) {
+    function fieldValue(field) {
+      if (!field) return "";
+      if (field.tagName && field.tagName.toLowerCase() === "select") {
+        var selected = field.options[field.selectedIndex];
+        return clean(selected ? selected.text || selected.value : field.value);
+      }
+      return clean(field.value);
+    }
+
+    function fieldText(field) {
+      if (!field) return "";
+
+      var labelText = "";
+
+      if (field.id) {
+        var label = document.querySelector('label[for="' + field.id + '"]');
+        if (label) labelText = label.textContent || "";
+      }
+
+      var parentText = "";
+      if (field.parentElement) {
+        parentText = field.parentElement.textContent || "";
+      }
+
+      return [
+        field.name,
+        field.id,
+        field.placeholder,
+        field.getAttribute("aria-label"),
+        field.getAttribute("data-field"),
+        field.getAttribute("data-name"),
+        labelText,
+        parentText
+      ]
+        .join(" ")
+        .toLowerCase();
+    }
+
+    function findByKeywords(root, keywords) {
+      var fields = allFields(root);
+      var keys = keywords.map(function (k) {
         return String(k).toLowerCase();
       });
 
       for (var i = 0; i < fields.length; i++) {
-        var field = fields[i];
+        var text = fieldText(fields[i]);
 
-        var haystack = [
-          field.name,
-          field.id,
-          field.placeholder,
-          field.getAttribute("aria-label"),
-          field.getAttribute("data-field"),
-          field.getAttribute("data-name")
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        for (var j = 0; j < lowered.length; j++) {
-          if (haystack.indexOf(lowered[j]) !== -1) {
-            return field;
-          }
+        for (var j = 0; j < keys.length; j++) {
+          if (text.indexOf(keys[j]) !== -1) return fields[i];
         }
       }
 
       return null;
     }
 
-    function am777ValueFromField(field) {
-      if (!field) return "";
-
-      if (field.tagName && field.tagName.toLowerCase() === "select") {
-        var selected = field.options[field.selectedIndex];
-        return am777Clean(selected ? selected.text || selected.value : field.value);
-      }
-
-      return am777Clean(field.value);
-    }
-
-    function am777FirstSelectValue(root) {
-      var select = (root || document).querySelector("select");
-      return am777ValueFromField(select);
-    }
-
-    function am777CollectLead(root) {
+    function collectLead(root) {
       root = root || document;
 
-      var name = am777ValueFromField(
-        am777FindField(root, ["name", "your name", "full name"])
-      );
+      var fields = allFields(root);
+      var inputs = fields.filter(function (field) {
+        return field.tagName.toLowerCase() === "input";
+      });
+      var textareas = fields.filter(function (field) {
+        return field.tagName.toLowerCase() === "textarea";
+      });
+      var selects = fields.filter(function (field) {
+        return field.tagName.toLowerCase() === "select";
+      });
 
-      var business = am777ValueFromField(
-        am777FindField(root, [
-          "business",
-          "page",
-          "company",
-          "business name",
-          "page name"
-        ])
-      );
+      var name =
+        fieldValue(findByKeywords(root, ["name", "your name", "full name"])) ||
+        fieldValue(inputs[0]);
 
-      var contact = am777ValueFromField(
-        am777FindField(root, [
-          "contact",
-          "phone",
-          "email",
-          "messenger",
-          "whatsapp",
-          "number"
-        ])
-      );
+      var business =
+        fieldValue(findByKeywords(root, ["business", "page", "company", "business name", "page name"])) ||
+        fieldValue(inputs[1]);
+
+      var contact =
+        fieldValue(findByKeywords(root, ["contact", "phone", "email", "messenger", "whatsapp", "number"])) ||
+        fieldValue(inputs[2]);
 
       var serviceNeeded =
-        am777ValueFromField(
-          am777FindField(root, [
-            "service",
-            "service needed",
-            "automation",
-            "crm",
-            "landing",
-            "chatbot"
-          ])
-        ) || am777FirstSelectValue(root);
+        fieldValue(findByKeywords(root, ["service", "service needed", "automation", "crm", "landing", "chatbot"])) ||
+        fieldValue(selects[0]) ||
+        fieldValue(inputs[3]);
 
-      var mainProblem = am777ValueFromField(
-        am777FindField(root, [
-          "problem",
-          "message",
-          "main problem",
-          "inquiry",
-          "workflow",
-          "manual",
-          "details"
-        ])
-      );
+      var problem =
+        fieldValue(findByKeywords(root, ["problem", "message", "main problem", "inquiry", "workflow", "manual", "details"])) ||
+        fieldValue(textareas[0]);
 
       return {
         type: "lead",
-        timestamp: am777NowISO(),
-        sessionId: am777SessionId(),
+        timestamp: nowISO(),
+        sessionId: sessionId(),
         name: name,
         business: business,
         contact: contact,
         serviceNeeded: serviceNeeded,
-        problem: mainProblem,
+        problem: problem,
         source: "AM777 GitHub Landing Page",
         page: window.location.href,
         referrer: document.referrer || "",
-        device: am777Device(),
+        device: deviceType(),
         userAgent: navigator.userAgent || "",
         status: "New",
         leadTemperature: "New",
@@ -182,9 +177,9 @@ if (!window.__AM777_CRM_PATCH_LOADED__) {
       };
     }
 
-    function am777SendToBackend(payload) {
+    function sendToBackend(payload) {
       if (!AM777_ENDPOINT || AM777_ENDPOINT.indexOf("/exec") === -1) {
-        console.warn("AM777 CRM endpoint missing or invalid.");
+        console.error("AM777 endpoint missing or invalid.");
         return Promise.resolve(false);
       }
 
@@ -205,113 +200,105 @@ if (!window.__AM777_CRM_PATCH_LOADED__) {
         });
     }
 
-    function am777SubmitLead(root) {
-      if (window.__AM777_LEAD_SUBMIT_LOCK__) return;
-      window.__AM777_LEAD_SUBMIT_LOCK__ = true;
+    function submitLead(root) {
+      var payload = collectLead(root);
 
-      setTimeout(function () {
-        window.__AM777_LEAD_SUBMIT_LOCK__ = false;
-      }, 1600);
-
-      var payload = am777CollectLead(root);
+      console.log("AM777 collected lead:", payload);
 
       if (!payload.name && !payload.contact && !payload.problem) {
         alert("Please add your name, contact, or inquiry details first.");
         return;
       }
 
-      am777SaveLocal(AM777_KEYS.leads, payload, 500);
+      saveLocal(AM777_KEYS.leads, payload, 500);
 
-      am777SendToBackend(payload).then(function () {
+      sendToBackend(payload).then(function () {
         alert("Thank you. Your automation request has been received.");
       });
     }
 
-    function am777TrackEvent(eventType, details) {
+    function trackEvent(eventType, details) {
       var payload = {
         type: "event",
-        timestamp: am777NowISO(),
-        sessionId: am777SessionId(),
+        timestamp: nowISO(),
+        sessionId: sessionId(),
         eventType: eventType,
         page: window.location.href,
-        device: am777Device(),
+        device: deviceType(),
         referrer: document.referrer || "",
         userAgent: navigator.userAgent || "",
         details: details || ""
       };
 
-      am777SaveLocal(AM777_KEYS.events, payload, 1000);
-      am777SendToBackend(payload);
+      saveLocal(AM777_KEYS.events, payload, 1000);
+      sendToBackend(payload);
     }
 
-    function am777BindForms() {
+    function bindForms() {
       var forms = document.querySelectorAll("form");
 
-      for (var i = 0; i < forms.length; i++) {
-        var form = forms[i];
-
-        if (form.getAttribute("data-am777-crm-bound") === "true") continue;
+      forms.forEach(function (form) {
+        if (form.getAttribute("data-am777-crm-bound") === "true") return;
 
         form.setAttribute("data-am777-crm-bound", "true");
 
         form.addEventListener("submit", function (event) {
           event.preventDefault();
-          am777SubmitLead(event.currentTarget);
+          submitLead(form);
         });
-      }
+      });
     }
 
-    function am777BindButtons() {
+    function bindButtons() {
       var buttons = document.querySelectorAll("button, a");
 
-      for (var i = 0; i < buttons.length; i++) {
-        var button = buttons[i];
-
-        if (button.getAttribute("data-am777-button-bound") === "true") continue;
+      buttons.forEach(function (button) {
+        if (button.getAttribute("data-am777-button-bound") === "true") return;
 
         var text = (button.textContent || "").toLowerCase();
 
-        var isLeadButton =
+        var isSubmitButton =
           text.indexOf("send automation request") !== -1 ||
           text.indexOf("request demo") !== -1 ||
-          text.indexOf("free automation") !== -1 ||
-          text.indexOf("automation request") !== -1;
+          text.indexOf("automation request") !== -1 ||
+          text.indexOf("send") !== -1;
 
-        if (!isLeadButton) continue;
+        if (!isSubmitButton) return;
 
         button.setAttribute("data-am777-button-bound", "true");
 
         button.addEventListener("click", function (event) {
-          var closestForm = event.currentTarget.closest("form");
+          var form = button.closest("form");
 
-          if (closestForm) {
+          if (form) {
+            event.preventDefault();
+            submitLead(form);
             return;
           }
 
           event.preventDefault();
 
           var section =
-            event.currentTarget.closest("section") ||
-            event.currentTarget.closest("main") ||
+            button.closest("#contact") ||
+            button.closest(".booking") ||
+            button.closest("section") ||
+            button.closest("main") ||
             document;
 
-          am777SubmitLead(section);
+          submitLead(section);
         });
-      }
+      });
     }
 
-    function am777BindTrackingClicks() {
+    function bindTracking() {
       document.addEventListener(
         "click",
         function (event) {
           var target = event.target.closest("a, button");
           if (!target) return;
 
-          var text = (target.textContent || "").trim();
+          var text = clean(target.textContent);
           var href = target.href || "";
-
-          if (!text && !href) return;
-
           var lower = (text + " " + href).toLowerCase();
 
           if (
@@ -323,40 +310,38 @@ if (!window.__AM777_CRM_PATCH_LOADED__) {
             lower.indexOf("facebook") !== -1 ||
             lower.indexOf("linkedin") !== -1
           ) {
-            am777TrackEvent("cta_click", text || href);
+            trackEvent("cta_click", text || href);
           }
         },
         true
       );
     }
 
-    function am777Init() {
-      am777BindForms();
-      am777BindButtons();
-      am777BindTrackingClicks();
-      am777TrackEvent("page_view", document.title || "AM777 Landing Page");
+    function initAM777CRM() {
+      bindForms();
+      bindButtons();
+      bindTracking();
+      trackEvent("page_view", document.title || "AM777 Landing Page");
 
       window.AM777_CRM_SYNC = {
+        collectLead: function () {
+          return collectLead(document);
+        },
         sendLead: function (payload) {
           payload = payload || {};
           payload.type = "lead";
-          return am777SendToBackend(payload);
+          return sendToBackend(payload);
         },
-        sendEvent: function (eventType, details) {
-          return am777TrackEvent(eventType, details);
-        },
-        collectLead: function () {
-          return am777CollectLead(document);
-        }
+        sendEvent: trackEvent
       };
 
-      console.log("AM777 CRM Sync Patch loaded.");
+      console.log("AM777 CRM Sync Patch loaded successfully.");
     }
 
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", am777Init);
+      document.addEventListener("DOMContentLoaded", initAM777CRM);
     } else {
-      am777Init();
+      initAM777CRM();
     }
   })();
 }
